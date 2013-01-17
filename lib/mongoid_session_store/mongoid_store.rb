@@ -40,7 +40,16 @@ module ActionDispatch
         end
 
         def find_session(id)
-          @@session_class.find_or_create_by(:id => id)
+          begin
+            @@session_class.find_or_create_by(:id => id)
+          rescue Moped::Errors::OperationFailure => e
+            # Retry in case of duplicate key error due to replication lag
+            if e.details['code'] == 11000
+              @@session_class.find(id)
+            else
+              raise e
+            end
+          end
         end
 
         # def destroy(env)
